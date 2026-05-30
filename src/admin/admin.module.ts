@@ -4,6 +4,7 @@ import { AdminService } from './admin.service';
 import { AdminHospitalController } from './admin-hospital.controller';
 import { AdminDepartmentController } from './admin-department.controller';
 import { AdminReservationController } from './admin-reservation.controller';
+import { AdminDashboardController } from './admin-dashboard.controller';
 
 @Module({
   imports: [AuthModule],
@@ -11,6 +12,7 @@ import { AdminReservationController } from './admin-reservation.controller';
     AdminHospitalController,
     AdminDepartmentController,
     AdminReservationController,
+    AdminDashboardController,
   ],
   providers: [AdminService],
 })
