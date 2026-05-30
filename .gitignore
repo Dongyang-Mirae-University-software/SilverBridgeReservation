@@ -1,0 +1,11 @@
+node_modules
+package-lock.json
+dist
+admin-ui/dist
+.env
+.env.*
+!.env.example
+*.db
+*.db-journal
+v8-compile-cache-0
+prisma/dev.db
