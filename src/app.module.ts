@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { HospitalModule } from './hospital/hospital.module';
 import { ReservationModule } from './reservation/reservation.module';
+import { AdminModule } from './admin/admin.module';
 import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -14,6 +15,7 @@ import { PrismaModule } from './prisma/prisma.module';
     UsersModule,
     HospitalModule,
     ReservationModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

@@ -6,6 +6,7 @@ import { AdminDepartmentController } from './admin-department.controller';
 import { AdminReservationController } from './admin-reservation.controller';
 import { AdminDashboardController } from './admin-dashboard.controller';
 import { AdminLogsController } from './admin-logs.controller';
+import { AdminUsersController } from './admin-users.controller';
 
 @Module({
   imports: [AuthModule],
@@ -15,6 +16,7 @@ import { AdminLogsController } from './admin-logs.controller';
     AdminReservationController,
     AdminDashboardController,
     AdminLogsController,
+    AdminUsersController,
   ],
   providers: [AdminService],
 })
