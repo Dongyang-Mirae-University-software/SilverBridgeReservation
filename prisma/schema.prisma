@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum OperationStatus {
+  OPEN
+  CLOSED
+  BREAK_TIME
+  HOLIDAY
+  INSPECTION
+}
+
+enum CongestionLevel {
+  LOW
+  NORMAL
+  BUSY
+  VERY_BUSY
+}
+
+enum ReservationStatus {
+  BOOKED
+  CONFIRMED
+  COMPLETED
+  CANCELED
+  NO_SHOW
+  REJECTED
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  name         String
+  phone        String
+  role         UserRole @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  reservations Reservation[]
+  adminLogs    AdminActionLog[]
+}
+
+model Hospital {
+  id                Int      @id @default(autoincrement())
+  name              String
+  region            String
+  address           String
+  phone             String
+  description       String   @default("")
+  openTime          String
+  closeTime         String
+  bookingAvailable  Boolean  @default(true)
+  deleted           Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  departments HospitalDepartment[]
+  status      HospitalStatus?
+  reservations Reservation[]
+}
+
+model HospitalDepartment {
+  id             Int      @id @default(autoincrement())
+  hospitalId     Int
+  departmentName String
+  active         Boolean  @default(true)
+  hospital       Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@index([hospitalId])
+}
+
+model HospitalStatus {
+  id                      Int               @id @default(autoincrement())
+  hospitalId              Int               @unique
+  operationStatus         OperationStatus   @default(OPEN)
+  congestionLevel         CongestionLevel   @default(NORMAL)
+  waitingCount            Int               @default(0)
+  averageWaitingMinutes   Int               @default(0)
+  todayReservationCount   Int               @default(0)
+  acceptingPatients       Boolean           @default(true)
+  notice                  String            @default("")
+  updatedAt               DateTime          @updatedAt
+  hospital                Hospital          @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+}
+
+model Reservation {
+  id               Int               @id @default(autoincrement())
+  hospitalId       Int
+  userId           Int
+  patientName      String
+  phone            String
+  birthDate        DateTime?
+  department       String
+  reservationDate  DateTime
+  reservationTime  String
+  symptomSummary   String            @default("")
+  memo             String            @default("")
+  status           ReservationStatus @default(BOOKED)
+  guardianName     String?
+  guardianPhone    String?
+  urgencyLevel     String?
+  symptomSeverity  Int?
+  emergencyFlag    Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@index([hospitalId, reservationDate, reservationTime])
+  @@index([userId, reservationDate, reservationTime])
+}
+
+model AdminActionLog {
+  id          Int      @id @default(autoincrement())
+  adminUserId Int
+  targetType  String
+  targetId    Int
+  actionType  String
+  beforeValue String   @default("{}")
+  afterValue  String   @default("{}")
+  createdAt   DateTime @default(now())
+
+  admin User @relation(fields: [adminUserId], references: [id])
+
+  @@index([adminUserId])
+  @@index([targetType, targetId])
+}
