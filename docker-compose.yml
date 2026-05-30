@@ -1,0 +1,22 @@
+# 예약 REST API만 기동 (관리자 UI·별도 DB 서버 없음).
+# 로컬 Docker: MCP(stdio)는 RESERVATION_API_BASE_URL=http://127.0.0.1:6015/api/v1
+# 운영: https://reservation.dmu.gosky.kr/api/v1
+services:
+  reservation-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "6015:6015"
+    environment:
+      PORT: "6015"
+      DATABASE_URL: file:/app/data/dev.db
+      JWT_SECRET: ${JWT_SECRET:-silverbridge_live_7XqP2mKa9LdR4tYu-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      ADMIN_PANEL_PASSWORD: ${ADMIN_PANEL_PASSWORD:-admin1234}
+    volumes:
+      - reservation_sqlite:/app/data
+    restart: unless-stopped
+
+volumes:
+  reservation_sqlite:

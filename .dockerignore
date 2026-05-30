@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.gitignore
+*.md
+.env
+.env.*
+!.env.example
+admin-ui/node_modules
+admin-ui/dist
+coverage
+.turbo
+*.log
