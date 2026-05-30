@@ -47,7 +47,24 @@ model User {
   updatedAt    DateTime @updatedAt
 
   reservations Reservation[]
+  apiKeys      ApiKey[]
   adminLogs    AdminActionLog[]
+}
+
+model ApiKey {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  name       String
+  keyPrefix  String   @unique
+  keyHash    String
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model Hospital {
