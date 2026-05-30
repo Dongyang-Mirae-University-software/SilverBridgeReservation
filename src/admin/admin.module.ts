@@ -1,0 +1,11 @@
+import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
+import { AdminService } from './admin.service';
+import { AdminHospitalController } from './admin-hospital.controller';
+
+@Module({
+  imports: [AuthModule],
+  controllers: [AdminHospitalController],
+  providers: [AdminService],
+})
+export class AdminModule {}
