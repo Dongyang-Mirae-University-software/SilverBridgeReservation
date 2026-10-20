@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { assertRequiredSecrets } from './common/config/required-env';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 function resolveCorsOrigins(): boolean | string[] {
@@ -26,6 +27,7 @@ function resolveCorsOrigins(): boolean | string[] {
 }
 
 async function bootstrap() {
+  assertRequiredSecrets();
   const app = await NestFactory.create(AppModule);
   app.enableCors({ origin: resolveCorsOrigins(), credentials: true });
   app.setGlobalPrefix('api/v1');

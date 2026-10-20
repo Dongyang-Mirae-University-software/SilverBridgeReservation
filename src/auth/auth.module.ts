@@ -17,7 +17,7 @@ import { JwtOrApiKeyGuard } from './guards/jwt-or-api-key.guard';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') ?? 'dev-secret-silverbridge_live_7XqP2mKa9LdR4tYu',
+        secret: config.getOrThrow<string>('JWT_SECRET'),
         signOptions: { expiresIn: config.get<string>('JWT_EXPIRES_IN') ?? '7d' },
       }),
     }),
