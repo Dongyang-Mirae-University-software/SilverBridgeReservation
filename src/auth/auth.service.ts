@@ -57,7 +57,7 @@ export class AuthService {
 
   /** 관리자 웹 패널: 이메일 없이 패널 비밀번호만으로 JWT 발급 (DB의 ADMIN 역할 사용자 기준) */
   async adminPanelLogin(password: string) {
-    const expected = this.config.get<string>('ADMIN_PANEL_PASSWORD') ?? 'admin1234';
+    const expected = this.config.getOrThrow<string>('ADMIN_PANEL_PASSWORD');
     if (!this.timingSafeEqualString(password, expected)) {
       throw new UnauthorizedException('비밀번호가 올바르지 않습니다.');
     }
