@@ -14,6 +14,7 @@
     "start:prod": "node dist/src/main.js",
     "mcp": "node dist/src/mcp/reservation-mcp.js",
     "mcp:dev": "tsx src/mcp/reservation-mcp.ts",
+    "test": "node --import tsx --test test/*.test.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",

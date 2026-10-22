@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { OperationStatus, ReservationStatus } from '@prisma/client';
 import { AppException } from '../common/app.exception';
+import { activeSlotConflict, duplicateReservation, slotTaken } from '../common/active-slot-conflict';
 import { HttpStatus } from '@nestjs/common';
 import { atStartOfDayUtc, generateHalfHourSlots, parseTimeToMinutes } from '../common/utils/time.util';
 import { PrismaService } from '../prisma/prisma.service';
@@ -64,7 +65,7 @@ export class ReservationService {
       },
     });
     if (dupUser) {
-      throw new AppException('DUPLICATE_RESERVATION', '동일 시간대에 이미 예약이 있습니다.', HttpStatus.BAD_REQUEST);
+      throw duplicateReservation();
     }
 
     const dupSlot = await this.prisma.reservation.findFirst({
@@ -76,7 +77,7 @@ export class ReservationService {
       },
     });
     if (dupSlot) {
-      throw new AppException('SLOT_TAKEN', '이미 마감된 시간대입니다.', HttpStatus.BAD_REQUEST);
+      throw slotTaken();
     }
 
     const birth = dto.birthDate ? new Date(dto.birthDate) : undefined;
@@ -112,6 +113,9 @@ export class ReservationService {
       }
 
       return created;
+    }).catch((e: unknown) => {
+      // 위 중복 검사와 INSERT 사이에 다른 요청이 끼어 활성 예약 유니크 인덱스에 걸린 경우 - 같은 오류 코드로 답한다.
+      throw activeSlotConflict(e) ?? e;
     });
 
     return {

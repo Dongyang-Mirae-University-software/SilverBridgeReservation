@@ -9,6 +9,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { atStartOfDayUtc } from '../common/utils/time.util';
+import { activeSlotConflict } from '../common/active-slot-conflict';
 import { CreateHospitalDto } from './dto/create-hospital.dto';
 import { UpdateHospitalDto } from './dto/update-hospital.dto';
 import { UpdateHospitalStatusDto } from './dto/update-hospital-status.dto';
@@ -405,13 +406,18 @@ export class AdminService {
       throw new NotFoundException('예약을 찾을 수 없습니다.');
     }
     const before = { status: r.status, memo: r.memo };
-    const updated = await this.prisma.reservation.update({
-      where: { id: reservationId },
-      data: {
-        status: dto.status,
-        memo: dto.memo !== undefined ? dto.memo : r.memo,
-      },
-    });
+    // 취소·완료된 예약을 다시 BOOKED/CONFIRMED 로 돌릴 때 같은 슬롯의 활성 예약과 겹치면 인덱스가 막는다.
+    const updated = await this.prisma.reservation
+      .update({
+        where: { id: reservationId },
+        data: {
+          status: dto.status,
+          memo: dto.memo !== undefined ? dto.memo : r.memo,
+        },
+      })
+      .catch((e: unknown) => {
+        throw activeSlotConflict(e) ?? e;
+      });
     await this.logAction(adminUserId, 'Reservation', reservationId, 'UPDATE_STATUS', before, {
       status: updated.status,
       memo: updated.memo,
