@@ -25,11 +25,7 @@ export class UpdateHospitalStatusDto {
   @Min(0)
   averageWaitingMinutes?: number;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  todayReservationCount?: number;
+  // todayReservationCount 는 받지 않는다 - 오늘(KST) 예약 행을 세서 응답한다(보내면 forbidNonWhitelisted 로 400).
 
   @ApiPropertyOptional()
   @IsOptional()

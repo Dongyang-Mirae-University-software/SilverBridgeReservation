@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { atStartOfDayUtc, todayKst } from '../common/utils/time.util';
 import { activeSlotConflict } from '../common/active-slot-conflict';
 import { AppException } from '../common/app.exception';
+import { countTodayReservations, withTodayCount } from '../common/today-reservation-count';
 import { CreateHospitalDto } from './dto/create-hospital.dto';
 import { UpdateHospitalDto } from './dto/update-hospital.dto';
 import { UpdateHospitalStatusDto } from './dto/update-hospital-status.dto';
@@ -20,6 +21,11 @@ import { UpdateReservationStatusAdminDto } from '../reservation/dto/update-reser
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** 현재 시각. 테스트가 KST 날짜 경계를 재현하려고 덮어쓴다. */
+  protected now(): Date {
+    return new Date();
+  }
 
   private static formatUserRow(user: {
     id: number;
@@ -192,11 +198,13 @@ export class AdminService {
   }
 
   async listHospitals() {
-    return this.prisma.hospital.findMany({
+    const rows = await this.prisma.hospital.findMany({
       where: { deleted: false },
       include: { status: true, departments: { where: { active: true } } },
       orderBy: { id: 'asc' },
     });
+    const counts = await countTodayReservations(this.prisma, rows.map((h) => h.id), this.now());
+    return rows.map((h) => withTodayCount(h, counts));
   }
 
   async createHospital(dto: CreateHospitalDto) {
@@ -247,13 +255,14 @@ export class AdminService {
     if (!existing) {
       throw new NotFoundException('병원을 찾을 수 없습니다.');
     }
-    return this.prisma.hospital.update({
+    const updated = await this.prisma.hospital.update({
       where: { id: hospitalId },
       data: {
         ...dto,
       },
       include: { status: true, departments: { where: { active: true } } },
     });
+    return withTodayCount(updated, await countTodayReservations(this.prisma, [hospitalId], this.now()));
   }
 
   async softDeleteHospital(hospitalId: number) {
@@ -288,7 +297,8 @@ export class AdminService {
       },
     });
     await this.logAction(adminUserId, 'HospitalStatus', hospitalId, 'UPDATE_STATUS', before, updated);
-    return updated;
+    const counts = await countTodayReservations(this.prisma, [hospitalId], this.now());
+    return { ...updated, todayReservationCount: counts.get(hospitalId) ?? 0 };
   }
 
   async addDepartment(hospitalId: number, name: string) {

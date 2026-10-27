@@ -115,14 +115,6 @@ export class ReservationService {
         },
         include: { hospital: true },
       });
-
-      if (dto.reservationDate === todayStr && hospital.status) {
-        await tx.hospitalStatus.update({
-          where: { hospitalId: dto.hospitalId },
-          data: { todayReservationCount: { increment: 1 } },
-        });
-      }
-
       return created;
     }).catch((e: unknown) => {
       // 위 중복 검사와 INSERT 사이에 다른 요청이 끼어 활성 예약 유니크 인덱스에 걸린 경우 - 같은 오류 코드로 답한다.
