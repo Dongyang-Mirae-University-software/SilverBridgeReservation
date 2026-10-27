@@ -123,8 +123,9 @@ test('관리자가 취소된 예약을 되살릴 때 활성 예약과 겹치면 
 test('마이그레이션은 겹치는 활성 예약이 있으면 실패하고 정리하면 성공한다(롤백 SQL 포함)', async () => {
   const statements = readFileSync(MIGRATION_SQL, 'utf8')
     .split('\n').filter((l) => !l.trim().startsWith('--')).join('\n').split(';').map((s) => s.trim()).filter(Boolean);
+  // 지금 DB 는 20261027120000 까지 적용된 상태다 - 현재 인덱스를 내리고 20261022120000 만 다시 시험한 뒤 끝에서 최신 상태로 되돌린다.
   await prisma.$executeRawUnsafe('DROP INDEX "Reservation_active_user_slot_key"');
-  await prisma.$executeRawUnsafe('DROP INDEX "Reservation_active_hospital_slot_key"');
+  await prisma.$executeRawUnsafe('DROP INDEX "Reservation_active_hospital_dept_slot_key"');
   const base = { patientName: 'p', phone: '010-1', department: '내과', reservationDate: new Date(`${DAY}T00:00:00.000Z`), reservationTime: '16:00' };
   const a = await prisma.reservation.create({ data: { ...base, hospitalId: hospitalA, userId: users[7] } });
   await prisma.reservation.create({ data: { ...base, hospitalId: hospitalA, userId: users[0] } }); // 같은 병원 슬롯 겹침
@@ -137,4 +138,8 @@ test('마이그레이션은 겹치는 활성 예약이 있으면 실패하고 �
   for (const s of statements) await prisma.$executeRawUnsafe(s);
   const idx = await prisma.$queryRawUnsafe<{ name: string }[]>(`SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'Reservation_active_%'`);
   assert.deepEqual(idx.map((i) => i.name).sort(), ['Reservation_active_hospital_slot_key', 'Reservation_active_user_slot_key']);
+  // 다음 마이그레이션(진료과별 칸)으로 최신 상태 복구
+  const next = readFileSync(join(root, 'prisma/migrations/20261027120000_active_slot_per_department/migration.sql'), 'utf8')
+    .split('\n').filter((l) => !l.trim().startsWith('--')).join('\n').split(';').map((s) => s.trim()).filter(Boolean);
+  for (const s of next) await prisma.$executeRawUnsafe(s);
 });

@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { CongestionLevel, OperationStatus, Prisma, ReservationStatus } from '@prisma/client';
+import { AppException } from '../common/app.exception';
 import { PrismaService } from '../prisma/prisma.service';
 import { HospitalQueryDto } from './dto/hospital-query.dto';
 import { atStartOfDayUtc, generateHalfHourSlots } from '../common/utils/time.util';
@@ -136,13 +137,21 @@ export class HospitalService {
     };
   }
 
-  async getAvailableSlots(hospitalId: number, dateStr: string) {
+  /**
+   * 빈 시간. 시간 칸은 진료과마다 따로라 department 를 주면 그 진료과의 활성 예약만 뺀다.
+   * department 를 생략하면 예전처럼 병원 전체 예약을 뺀다 - 진료과를 모르는 옛 호출자가 빈 칸을 실제보다 많게 보지 않게 한다.
+   */
+  async getAvailableSlots(hospitalId: number, dateStr: string, department?: string) {
     const h = await this.prisma.hospital.findFirst({
       where: { id: hospitalId, deleted: false },
-      include: { status: true },
+      include: { status: true, departments: { where: { active: true } } },
     });
     if (!h) {
       throw new NotFoundException('병원을 찾을 수 없습니다.');
+    }
+    const dept = department?.trim() || undefined;
+    if (dept && !h.departments.some((d) => d.departmentName === dept)) {
+      throw new AppException('INVALID_DEPARTMENT', '선택한 진료과가 병원에 없습니다.', HttpStatus.BAD_REQUEST);
     }
     const day = atStartOfDayUtc(dateStr);
     const allSlots = generateHalfHourSlots(h.openTime, h.closeTime);
@@ -150,6 +159,7 @@ export class HospitalService {
     const booked = await this.prisma.reservation.findMany({
       where: {
         hospitalId,
+        ...(dept ? { department: dept } : {}),
         reservationDate: day,
         status: { in: ACTIVE_RESERVATION },
       },

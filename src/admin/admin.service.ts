@@ -8,7 +8,7 @@ import {
   UserRole,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { atStartOfDayUtc } from '../common/utils/time.util';
+import { atStartOfDayUtc, todayKst } from '../common/utils/time.util';
 import { activeSlotConflict } from '../common/active-slot-conflict';
 import { CreateHospitalDto } from './dto/create-hospital.dto';
 import { UpdateHospitalDto } from './dto/update-hospital.dto';
@@ -426,7 +426,7 @@ export class AdminService {
   }
 
   async dashboard() {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayKst();
     const todayStart = atStartOfDayUtc(todayStr);
 
     const [todayTotal, byStatus, hospitals, congestionRows, opRows] = await Promise.all([

@@ -3,7 +3,7 @@ import { OperationStatus, ReservationStatus } from '@prisma/client';
 import { AppException } from '../common/app.exception';
 import { activeSlotConflict, duplicateReservation, slotTaken } from '../common/active-slot-conflict';
 import { HttpStatus } from '@nestjs/common';
-import { atStartOfDayUtc, generateHalfHourSlots, parseTimeToMinutes } from '../common/utils/time.util';
+import { atStartOfDayUtc, generateHalfHourSlots, parseTimeToMinutes, todayKst } from '../common/utils/time.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 
@@ -13,9 +13,14 @@ const ACTIVE: ReservationStatus[] = [ReservationStatus.BOOKED, ReservationStatus
 export class ReservationService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** 현재 시각. 테스트가 KST 날짜 경계(00~09시)를 재현하려고 덮어쓴다. */
+  protected now(): Date {
+    return new Date();
+  }
+
   async create(userId: number, dto: CreateReservationDto) {
     const day = atStartOfDayUtc(dto.reservationDate);
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayKst(this.now());
     if (dto.reservationDate < todayStr) {
       throw new AppException('INVALID_REQUEST', '예약 날짜는 오늘 이후여야 합니다.', HttpStatus.BAD_REQUEST);
     }
@@ -68,9 +73,11 @@ export class ReservationService {
       throw duplicateReservation();
     }
 
+    // 시간 칸은 진료과마다 따로다 - 같은 병원이라도 내과 10시와 안과 10시는 서로 막지 않는다.
     const dupSlot = await this.prisma.reservation.findFirst({
       where: {
         hospitalId: dto.hospitalId,
+        department: dto.department,
         reservationDate: day,
         reservationTime: dto.reservationTime,
         status: { in: ACTIVE },
