@@ -3,7 +3,7 @@ import { CongestionLevel, OperationStatus, Prisma, ReservationStatus } from '@pr
 import { AppException } from '../common/app.exception';
 import { PrismaService } from '../prisma/prisma.service';
 import { HospitalQueryDto } from './dto/hospital-query.dto';
-import { atStartOfDayUtc, generateHalfHourSlots } from '../common/utils/time.util';
+import { atStartOfDayUtc, generateHalfHourSlots, isPastSlotKst } from '../common/utils/time.util';
 
 const ACTIVE_RESERVATION: ReservationStatus[] = [
   ReservationStatus.BOOKED,
@@ -13,6 +13,11 @@ const ACTIVE_RESERVATION: ReservationStatus[] = [
 @Injectable()
 export class HospitalService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** 현재 시각. 테스트가 KST 시각 경계를 재현하려고 덮어쓴다. */
+  protected now(): Date {
+    return new Date();
+  }
 
   private mapHospitalListRow(h: {
     id: number;
@@ -166,7 +171,9 @@ export class HospitalService {
       select: { reservationTime: true },
     });
     const taken = new Set(booked.map((b) => b.reservationTime));
-    const availableSlots = allSlots.filter((s) => !taken.has(s));
+    // 오늘이면 이미 지난 칸도 뺀다(예약 생성이 PAST_TIME 으로 거절하는 칸)
+    const now = this.now();
+    const availableSlots = allSlots.filter((s) => !taken.has(s) && !isPastSlotKst(dateStr, s, now));
 
     return {
       hospitalId: h.id,

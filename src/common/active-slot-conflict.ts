@@ -7,6 +7,11 @@ export function duplicateReservation(): AppException {
   return new AppException('DUPLICATE_RESERVATION', '동일 시간대에 이미 예약이 있습니다.', HttpStatus.BAD_REQUEST);
 }
 
+/** 오늘(KST) 이미 지난 시간이다. AI는 이 코드면 시간을 다시 고르게 한다. */
+export function pastTime(): AppException {
+  return new AppException('PAST_TIME', '이미 지난 시간이에요. 다른 시간을 골라 주세요.', HttpStatus.BAD_REQUEST);
+}
+
 /** 같은 병원·진료과의 같은 날짜·시간 칸이 이미 찼다. */
 export function slotTaken(): AppException {
   return new AppException('SLOT_TAKEN', '이미 마감된 시간대입니다.', HttpStatus.BAD_REQUEST);

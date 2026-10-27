@@ -37,3 +37,15 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 export function todayKst(now: Date = new Date()): string {
   return new Date(now.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10);
 }
+
+/**
+ * 오늘(KST) 이미 지난 칸인가. AI·FE와 같은 기준이다: 분 단위로 자른 지금 KST 시각 이하면 지난 칸(10:00 칸은 10:00부터 지남).
+ * 다른 날짜는 여기서 판단하지 않는다(지난 날짜는 예약 생성이 따로 거절한다).
+ */
+export function isPastSlotKst(dateStr: string, hhmm: string, now: Date = new Date()): boolean {
+  if (dateStr !== todayKst(now)) return false;
+  const kst = new Date(now.getTime() + KST_OFFSET_MS);
+  const nowMinutes = kst.getUTCHours() * 60 + kst.getUTCMinutes();
+  const slot = parseTimeToMinutes(hhmm);
+  return !Number.isNaN(slot) && slot <= nowMinutes;
+}
