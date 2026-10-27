@@ -124,9 +124,9 @@ test('"오늘"은 KST - KST 00~09시(UTC 전날)에도 KST 오늘 예약을 받�
   const ok = await clocked.create(users[9], dto('내과', '15:00', '2026-10-28'));
   assert.equal(ok.status, 'BOOKED');
   await assert.rejects(() => clocked.create(users[9], dto('내과', '16:00', '2026-10-27')), (e: unknown) => codeOf(e) === 'INVALID_REQUEST');
-  // KST 오늘 예약은 병원 오늘 예약 수에 들어간다
-  const st = await prisma.hospitalStatus.findUnique({ where: { hospitalId } });
-  assert.equal(st?.todayReservationCount, 1);
+  // KST 오늘 예약은 병원 오늘 예약 수에 들어간다(예약 행을 KST 날짜로 센다)
+  const { countTodayReservations } = require('../src/common/today-reservation-count');
+  assert.equal((await countTodayReservations(prisma, [hospitalId], fixed)).get(hospitalId), 1);
 });
 
 test('마이그레이션 적용·되돌리기 - 진료과만 다른 예약이 있으면 되돌리기(예전 인덱스)가 실패한다', async () => {

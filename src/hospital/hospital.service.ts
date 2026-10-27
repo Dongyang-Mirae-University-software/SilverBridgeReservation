@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { CongestionLevel, OperationStatus, Prisma, ReservationStatus } from '@prisma/client';
 import { AppException } from '../common/app.exception';
+import { countTodayReservations } from '../common/today-reservation-count';
 import { PrismaService } from '../prisma/prisma.service';
 import { HospitalQueryDto } from './dto/hospital-query.dto';
 import { atStartOfDayUtc, generateHalfHourSlots, isPastSlotKst } from '../common/utils/time.util';
@@ -116,7 +117,7 @@ export class HospitalService {
       congestionLevel: s.congestionLevel,
       waitingCount: s.waitingCount,
       averageWaitingMinutes: s.averageWaitingMinutes,
-      todayReservationCount: s.todayReservationCount,
+      todayReservationCount: (await countTodayReservations(this.prisma, [h.id], this.now())).get(h.id) ?? 0,
       acceptingPatients: s.acceptingPatients,
       notice: s.notice,
     };
