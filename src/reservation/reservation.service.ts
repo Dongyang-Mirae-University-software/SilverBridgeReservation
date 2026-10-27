@@ -1,9 +1,9 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { OperationStatus, ReservationStatus } from '@prisma/client';
 import { AppException } from '../common/app.exception';
-import { activeSlotConflict, duplicateReservation, slotTaken } from '../common/active-slot-conflict';
+import { activeSlotConflict, duplicateReservation, pastTime, slotTaken } from '../common/active-slot-conflict';
 import { HttpStatus } from '@nestjs/common';
-import { atStartOfDayUtc, generateHalfHourSlots, parseTimeToMinutes, todayKst } from '../common/utils/time.util';
+import { atStartOfDayUtc, generateHalfHourSlots, isPastSlotKst, parseTimeToMinutes, todayKst } from '../common/utils/time.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 
@@ -20,7 +20,8 @@ export class ReservationService {
 
   async create(userId: number, dto: CreateReservationDto) {
     const day = atStartOfDayUtc(dto.reservationDate);
-    const todayStr = todayKst(this.now());
+    const now = this.now();
+    const todayStr = todayKst(now);
     if (dto.reservationDate < todayStr) {
       throw new AppException('INVALID_REQUEST', '예약 날짜는 오늘 이후여야 합니다.', HttpStatus.BAD_REQUEST);
     }
@@ -59,6 +60,9 @@ export class ReservationService {
     const curM = parseTimeToMinutes(dto.reservationTime);
     if (Number.isNaN(curM) || curM < openM || curM >= closeM) {
       throw new AppException('INVALID_TIME', '예약 시간이 병원 운영시간 외입니다.', HttpStatus.BAD_REQUEST);
+    }
+    if (isPastSlotKst(dto.reservationDate, dto.reservationTime, now)) {
+      throw pastTime();
     }
 
     const dupUser = await this.prisma.reservation.findFirst({
