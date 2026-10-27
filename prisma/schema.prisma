@@ -111,7 +111,8 @@ model HospitalStatus {
 }
 
 // 주의: 활성(BOOKED·CONFIRMED) 예약의 부분 유니크 인덱스 2개(Reservation_active_user_slot_key,
-// Reservation_active_hospital_slot_key)는 마이그레이션 20261022120000 의 SQL 로만 존재한다(Prisma 가 부분 인덱스를 표현하지 못함).
+// Reservation_active_hospital_dept_slot_key)는 마이그레이션 20261022120000·20261027120000 의 SQL 로만 존재한다(Prisma 가 부분 인덱스를 표현하지 못함).
+// 시간 칸은 (병원, 진료과, 날짜, 시간)마다 한 건이다(20261027120000 이 병원 단위 인덱스를 교체).
 // `prisma migrate dev` 가 이 인덱스를 드리프트로 보고 지우려 하면 거부할 것.
 model Reservation {
   id               Int               @id @default(autoincrement())

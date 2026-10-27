@@ -33,7 +33,7 @@ export class HospitalController {
     @Param('hospitalId', ParseIntPipe) hospitalId: number,
     @Query() q: AvailableSlotsQueryDto,
   ) {
-    return this.hospital.getAvailableSlots(hospitalId, q.date);
+    return this.hospital.getAvailableSlots(hospitalId, q.date, q.department);
   }
 
   @Get(':hospitalId/departments')

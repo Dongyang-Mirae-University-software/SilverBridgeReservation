@@ -102,26 +102,27 @@ async function buildSearchHospitalData(
   }> = [];
 
   for (const h of raw) {
-    let slotTimes: string[] = [];
-    if (slotDate) {
-      try {
-        const slotRes = (await fetchApi(
-          `/hospitals/${h.id}/available-slots?date=${encodeURIComponent(slotDate)}`,
-          { noAuth: true },
-        )) as { availableSlots?: string[] };
-        slotTimes = slotRes.availableSlots ?? [];
-      } catch {
-        slotTimes = [];
-      }
-    }
-    const slotsFormatted = slotTimes.map((t) => `${slotDate ?? ''} ${t}`.trim());
     const depts = h.departments?.length ? h.departments : [''];
     for (const dept of depts) {
+      // 시간 칸은 진료과마다 따로라 진료과별로 조회한다(진료과가 없으면 병원 전체 기준).
+      let slotTimes: string[] = [];
+      if (slotDate) {
+        try {
+          const deptQs = dept ? `&department=${encodeURIComponent(dept)}` : '';
+          const slotRes = (await fetchApi(
+            `/hospitals/${h.id}/available-slots?date=${encodeURIComponent(slotDate)}${deptQs}`,
+            { noAuth: true },
+          )) as { availableSlots?: string[] };
+          slotTimes = slotRes.availableSlots ?? [];
+        } catch {
+          slotTimes = [];
+        }
+      }
       out.push({
         hospital: h.name,
         department: dept || '—',
         location: h.region,
-        availableSlots: slotsFormatted,
+        availableSlots: slotTimes.map((t) => `${slotDate ?? ''} ${t}`.trim()),
       });
     }
   }
@@ -277,11 +278,13 @@ async function main() {
       inputSchema: {
         hospitalId: z.number().int().positive(),
         date: z.string().describe('YYYY-MM-DD'),
+        department: z.string().optional().describe('진료과 - 시간 칸은 진료과마다 따로다(생략하면 병원 전체 기준)'),
       },
     },
-    async ({ hospitalId, date }) => {
+    async ({ hospitalId, date, department }) => {
       try {
-        const data = await fetchApi(`/hospitals/${hospitalId}/available-slots?date=${encodeURIComponent(date)}`, {
+        const deptQs = department ? `&department=${encodeURIComponent(department)}` : '';
+        const data = await fetchApi(`/hospitals/${hospitalId}/available-slots?date=${encodeURIComponent(date)}${deptQs}`, {
           noAuth: true,
         });
         return mcpSuccess(TOOLS.get_available_slots, data);
