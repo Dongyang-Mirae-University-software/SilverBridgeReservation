@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import {
   CongestionLevel,
@@ -10,6 +10,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { atStartOfDayUtc, todayKst } from '../common/utils/time.util';
 import { activeSlotConflict } from '../common/active-slot-conflict';
+import { AppException } from '../common/app.exception';
 import { CreateHospitalDto } from './dto/create-hospital.dto';
 import { UpdateHospitalDto } from './dto/update-hospital.dto';
 import { UpdateHospitalStatusDto } from './dto/update-hospital-status.dto';
@@ -309,13 +310,46 @@ export class AdminService {
     if (!d) {
       throw new NotFoundException('진료과를 찾을 수 없습니다.');
     }
-    return this.prisma.hospitalDepartment.update({
-      where: { id: departmentId },
-      data: {
-        departmentName: dto.name ?? d.departmentName,
-        active: dto.active ?? d.active,
-      },
-    });
+    const newName = dto.name ?? d.departmentName;
+    if (newName === d.departmentName) {
+      return this.prisma.hospitalDepartment.update({
+        where: { id: departmentId },
+        data: { active: dto.active ?? d.active },
+      });
+    }
+    // 예약은 진료과를 이름 문자열로 들고 있고 시간 칸은 (병원, 진료과, 날짜, 시간)이다.
+    // 이름만 바꾸면 옛 이름의 예약이 새 이름의 시간 칸을 막지 못해 같은 시간이 두 번 잡히므로,
+    // 오늘(KST) 이후의 활성 예약을 한 트랜잭션에서 새 이름으로 옮긴다. 지난·완료·취소 예약은 기록이라 옛 이름 그대로.
+    return this.prisma
+      .$transaction(async (tx) => {
+        const clash = await tx.hospitalDepartment.findFirst({
+          where: { hospitalId: d.hospitalId, departmentName: newName, active: true, id: { not: departmentId } },
+        });
+        if (clash) {
+          throw departmentDuplicated();
+        }
+        const updated = await tx.hospitalDepartment.update({
+          where: { id: departmentId },
+          data: { departmentName: newName, active: dto.active ?? d.active },
+        });
+        await tx.reservation.updateMany({
+          where: {
+            hospitalId: d.hospitalId,
+            department: d.departmentName,
+            status: { in: [ReservationStatus.BOOKED, ReservationStatus.CONFIRMED] },
+            reservationDate: { gte: atStartOfDayUtc(todayKst()) },
+          },
+          data: { department: newName },
+        });
+        return updated;
+      })
+      .catch((e: unknown) => {
+        // 사용 중지된 같은 이름 진료과의 예약과 시간 칸이 겹치면 인덱스가 막는다 - 전체 롤백 후 같은 오류로 답한다.
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+          throw departmentDuplicated();
+        }
+        throw e;
+      });
   }
 
   async deleteDepartment(departmentId: number) {
@@ -484,4 +518,9 @@ export class AdminService {
       include: { admin: { select: { id: true, email: true, name: true } } },
     });
   }
+}
+
+/** 같은 병원에 같은 이름의 진료과가 이미 있다(BE 중계가 먼저 막지만 직접 호출까지 막는 2차 방어). */
+function departmentDuplicated(): AppException {
+  return new AppException('DEPARTMENT_DUPLICATED', '같은 이름의 진료과가 이미 있습니다.', HttpStatus.BAD_REQUEST);
 }
