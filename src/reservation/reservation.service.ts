@@ -3,7 +3,8 @@ import { OperationStatus, ReservationStatus } from '@prisma/client';
 import { AppException } from '../common/app.exception';
 import { activeSlotConflict, duplicateReservation, pastTime, slotTaken } from '../common/active-slot-conflict';
 import { HttpStatus } from '@nestjs/common';
-import { atStartOfDayUtc, generateHalfHourSlots, isPastSlotKst, parseTimeToMinutes, todayKst } from '../common/utils/time.util';
+import { atStartOfDayUtc, isPastSlotKst, parseTimeToMinutes, todayKst } from '../common/utils/time.util';
+import { isClosedOn, slotsForDay } from '../common/hospital-schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 
@@ -51,7 +52,11 @@ export class ReservationService {
       throw new AppException('INVALID_DEPARTMENT', '선택한 진료과가 병원에 없습니다.', HttpStatus.BAD_REQUEST);
     }
 
-    const slots = generateHalfHourSlots(hospital.openTime, hospital.closeTime);
+    if (isClosedOn(hospital, dto.reservationDate)) {
+      throw new AppException('HOSPITAL_DAY_OFF', '그날은 병원이 쉬는 날이에요. 다른 날짜를 골라 주세요.', HttpStatus.BAD_REQUEST);
+    }
+    // 점심시간과 겹치는 칸은 slotsForDay 가 뺀다 - 그 시각은 아래 INVALID_TIME 으로 거절된다
+    const slots = slotsForDay(hospital, dto.reservationDate);
     if (!slots.includes(dto.reservationTime)) {
       throw new AppException('INVALID_TIME', '예약 시간이 병원 운영시간 또는 슬롯에 맞지 않습니다.', HttpStatus.BAD_REQUEST);
     }

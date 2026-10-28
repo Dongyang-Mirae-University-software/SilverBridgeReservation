@@ -4,7 +4,8 @@ import { AppException } from '../common/app.exception';
 import { countTodayReservations } from '../common/today-reservation-count';
 import { PrismaService } from '../prisma/prisma.service';
 import { HospitalQueryDto } from './dto/hospital-query.dto';
-import { atStartOfDayUtc, generateHalfHourSlots, isPastSlotKst } from '../common/utils/time.util';
+import { atStartOfDayUtc, isPastSlotKst } from '../common/utils/time.util';
+import { scheduleView, slotsForDay } from '../common/hospital-schedule';
 
 const ACTIVE_RESERVATION: ReservationStatus[] = [
   ReservationStatus.BOOKED,
@@ -29,6 +30,9 @@ export class HospitalService {
     description: string;
     openTime: string;
     closeTime: string;
+    breakStart: string | null;
+    breakEnd: string | null;
+    closedWeekdays: string;
     bookingAvailable: boolean;
     departments: { departmentName: string }[];
     status: {
@@ -50,6 +54,7 @@ export class HospitalService {
       description: h.description,
       openTime: h.openTime,
       closeTime: h.closeTime,
+      ...scheduleView(h),
     };
   }
 
@@ -160,7 +165,8 @@ export class HospitalService {
       throw new AppException('INVALID_DEPARTMENT', '선택한 진료과가 병원에 없습니다.', HttpStatus.BAD_REQUEST);
     }
     const day = atStartOfDayUtc(dateStr);
-    const allSlots = generateHalfHourSlots(h.openTime, h.closeTime);
+    // 휴진 요일이면 빈 목록, 점심시간 칸은 뺀다(slotsForDay 한 곳)
+    const allSlots = slotsForDay(h, dateStr);
 
     const booked = await this.prisma.reservation.findMany({
       where: {
