@@ -12,6 +12,7 @@ import { atStartOfDayUtc, todayKst } from '../common/utils/time.util';
 import { activeSlotConflict } from '../common/active-slot-conflict';
 import { AppException } from '../common/app.exception';
 import { countTodayReservations, withTodayCount } from '../common/today-reservation-count';
+import { formatClosedWeekdays, scheduleView, validateSchedule } from '../common/hospital-schedule';
 import { CreateHospitalDto } from './dto/create-hospital.dto';
 import { UpdateHospitalDto } from './dto/update-hospital.dto';
 import { UpdateHospitalStatusDto } from './dto/update-hospital-status.dto';
@@ -204,10 +205,11 @@ export class AdminService {
       orderBy: { id: 'asc' },
     });
     const counts = await countTodayReservations(this.prisma, rows.map((h) => h.id), this.now());
-    return rows.map((h) => withTodayCount(h, counts));
+    return rows.map((h) => ({ ...withTodayCount(h, counts), ...scheduleView(h) }));
   }
 
   async createHospital(dto: CreateHospitalDto) {
+    validateSchedule(dto.openTime, dto.closeTime, dto.breakStart ?? null, dto.breakEnd ?? null);
     const created = await this.prisma.$transaction(async (tx) => {
       const h = await tx.hospital.create({
         data: {
@@ -218,6 +220,9 @@ export class AdminService {
           description: dto.description ?? '',
           openTime: dto.openTime,
           closeTime: dto.closeTime,
+          breakStart: dto.breakStart ?? null,
+          breakEnd: dto.breakEnd ?? null,
+          closedWeekdays: formatClosedWeekdays(dto.closedWeekdays),
           bookingAvailable: dto.bookingAvailable ?? true,
         },
       });
@@ -245,7 +250,7 @@ export class AdminService {
         include: { status: true, departments: true },
       });
     });
-    return created;
+    return { ...created, ...scheduleView(created) };
   }
 
   async updateHospital(hospitalId: number, dto: UpdateHospitalDto) {
@@ -255,14 +260,24 @@ export class AdminService {
     if (!existing) {
       throw new NotFoundException('병원을 찾을 수 없습니다.');
     }
+    const { closedWeekdays, ...rest } = dto;
+    // 점심시간·진료 시간은 바뀐 뒤의 조합으로 검사한다(한쪽만 보내도 기존 값과 맞아야 한다). null 은 점심시간 지우기.
+    const next = {
+      openTime: dto.openTime ?? existing.openTime,
+      closeTime: dto.closeTime ?? existing.closeTime,
+      breakStart: dto.breakStart !== undefined ? dto.breakStart : existing.breakStart,
+      breakEnd: dto.breakEnd !== undefined ? dto.breakEnd : existing.breakEnd,
+    };
+    validateSchedule(next.openTime, next.closeTime, next.breakStart ?? null, next.breakEnd ?? null);
     const updated = await this.prisma.hospital.update({
       where: { id: hospitalId },
       data: {
-        ...dto,
+        ...rest,
+        ...(closedWeekdays !== undefined ? { closedWeekdays: formatClosedWeekdays(closedWeekdays) } : {}),
       },
       include: { status: true, departments: { where: { active: true } } },
     });
-    return withTodayCount(updated, await countTodayReservations(this.prisma, [hospitalId], this.now()));
+    return { ...withTodayCount(updated, await countTodayReservations(this.prisma, [hospitalId], this.now())), ...scheduleView(updated) };
   }
 
   async softDeleteHospital(hospitalId: number) {

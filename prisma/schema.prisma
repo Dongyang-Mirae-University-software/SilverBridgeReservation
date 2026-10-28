@@ -76,6 +76,11 @@ model Hospital {
   description       String   @default("")
   openTime          String
   closeTime         String
+  // 점심시간(둘 다 있거나 둘 다 없음, HH:mm) - 이 구간과 겹치는 30분 칸은 예약을 받지 않는다(2026-10-28)
+  breakStart        String?
+  breakEnd          String?
+  // 휴진 요일: 쉼표로 구분한 요일 번호(0=일 … 6=토), 빈 문자열이면 없음
+  closedWeekdays    String   @default("")
   bookingAvailable  Boolean  @default(true)
   deleted           Boolean  @default(false)
   createdAt         DateTime @default(now())
