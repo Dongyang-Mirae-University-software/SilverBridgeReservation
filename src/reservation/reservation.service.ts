@@ -4,7 +4,7 @@ import { AppException } from '../common/app.exception';
 import { activeSlotConflict, duplicateReservation, pastTime, slotTaken } from '../common/active-slot-conflict';
 import { HttpStatus } from '@nestjs/common';
 import { atStartOfDayUtc, isPastSlotKst, parseTimeToMinutes, todayKst } from '../common/utils/time.util';
-import { isClosedOn, slotsForDay } from '../common/hospital-schedule';
+import { hoursForDay, isClosedOn, slotsForDay } from '../common/hospital-schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 
@@ -60,8 +60,9 @@ export class ReservationService {
     if (!slots.includes(dto.reservationTime)) {
       throw new AppException('INVALID_TIME', '예약 시간이 병원 운영시간 또는 슬롯에 맞지 않습니다.', HttpStatus.BAD_REQUEST);
     }
-    const openM = parseTimeToMinutes(hospital.openTime);
-    const closeM = parseTimeToMinutes(hospital.closeTime);
+    const dayHours = hoursForDay(hospital, dto.reservationDate); // 요일별 진료 시간(예: 토요일 반일) 기준
+    const openM = parseTimeToMinutes(dayHours.openTime);
+    const closeM = parseTimeToMinutes(dayHours.closeTime);
     const curM = parseTimeToMinutes(dto.reservationTime);
     if (Number.isNaN(curM) || curM < openM || curM >= closeM) {
       throw new AppException('INVALID_TIME', '예약 시간이 병원 운영시간 외입니다.', HttpStatus.BAD_REQUEST);

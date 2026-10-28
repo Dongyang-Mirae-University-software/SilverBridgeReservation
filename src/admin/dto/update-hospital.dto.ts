@@ -1,6 +1,21 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsInt, IsOptional, IsString, Matches, Max, Min, MinLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
 
+import { Type } from 'class-transformer';
+import { WeekdayHoursDto } from './weekday-hours.dto';
 export class UpdateHospitalDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -62,4 +77,12 @@ export class UpdateHospitalDto {
   @Min(0, { each: true })
   @Max(6, { each: true })
   closedWeekdays?: number[];
+
+  @ApiPropertyOptional({ type: [WeekdayHoursDto], description: '요일별 진료 시간(그 요일만 기본 진료 시간을 덮어씀), 빈 배열이면 없음' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(7)
+  @ValidateNested({ each: true })
+  @Type(() => WeekdayHoursDto)
+  weekdayHours?: WeekdayHoursDto[];
 }

@@ -81,6 +81,8 @@ model Hospital {
   breakEnd          String?
   // 휴진 요일: 쉼표로 구분한 요일 번호(0=일 … 6=토), 빈 문자열이면 없음
   closedWeekdays    String   @default("")
+  // 요일별 진료 시간(그 요일만 기본 진료 시간을 덮어씀, 예: 토요일 반일). JSON 배열 문자열, 빈 문자열이면 없음
+  weekdayHours      String   @default("")
   bookingAvailable  Boolean  @default(true)
   deleted           Boolean  @default(false)
   createdAt         DateTime @default(now())
