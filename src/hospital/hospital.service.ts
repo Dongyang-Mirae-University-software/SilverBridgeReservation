@@ -33,6 +33,7 @@ export class HospitalService {
     breakStart: string | null;
     breakEnd: string | null;
     closedWeekdays: string;
+    weekdayHours: string;
     bookingAvailable: boolean;
     departments: { departmentName: string }[];
     status: {
