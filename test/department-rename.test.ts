@@ -105,3 +105,23 @@ test('이름 없이 active 만 바꾸면 예전처럼 진료과만 바뀌고 예
   assert.equal(same.active, true);
   assert.deepEqual(await prisma.reservation.findMany({ orderBy: { id: 'asc' }, select: { id: true, department: true } }), before);
 });
+
+test('바깥 확인과 저장 사이에 진료과 이름이 바뀌면 옛 이름으로 저장하지 않고 INVALID_DEPARTMENT', async () => {
+  const { ReservationService } = require('../src/reservation/reservation.service');
+  const d = await prisma.hospitalDepartment.create({ data: { hospitalId, departmentName: '피부과' } });
+  // 트랜잭션 직전에 관리자가 이름을 바꾸는 경합을 끼워 넣는다
+  const racing = new Proxy(prisma, {
+    get(target, prop, receiver) {
+      if (prop === '$transaction') {
+        return async (fn: unknown) => {
+          await admin.updateDepartment(d.id, { name: '피부미용과' });
+          return (target.$transaction as (f: unknown) => Promise<unknown>)(fn);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+  const svc = new ReservationService(racing);
+  await assert.rejects(() => svc.create(users[5], dto('피부과', '15:00')), (e: unknown) => codeOf(e) === 'INVALID_DEPARTMENT');
+  assert.equal(await prisma.reservation.count({ where: { hospitalId, department: '피부과' } }), 0);
+});
