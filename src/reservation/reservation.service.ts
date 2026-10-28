@@ -94,6 +94,15 @@ export class ReservationService {
     const birth = dto.birthDate ? new Date(dto.birthDate) : undefined;
 
     const res = await this.prisma.$transaction(async (tx) => {
+      // 진료과를 저장과 같은 트랜잭션에서 한 번 더 확인한다. 위 확인과 INSERT 사이에 관리자가 진료과 이름을 바꾸면
+      // 옛 이름으로 저장돼 새 이름의 시간 칸을 막지 못했다(예약 흐름 점검 수용 한계 - 이름 변경은 미래 예약을 같은 트랜잭션에서 옮긴다).
+      const stillOffered = await tx.hospitalDepartment.findFirst({
+        where: { hospitalId: dto.hospitalId, departmentName: dto.department, active: true },
+        select: { id: true },
+      });
+      if (!stillOffered) {
+        throw new AppException('INVALID_DEPARTMENT', '선택한 진료과가 병원에 없습니다.', HttpStatus.BAD_REQUEST);
+      }
       const created = await tx.reservation.create({
         data: {
           hospitalId: dto.hospitalId,
