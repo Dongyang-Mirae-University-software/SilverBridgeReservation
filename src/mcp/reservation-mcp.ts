@@ -618,7 +618,7 @@ async function main() {
         congestionLevel: z.enum(['LOW', 'NORMAL', 'BUSY', 'VERY_BUSY']).optional(),
         waitingCount: z.number().int().min(0).optional(),
         averageWaitingMinutes: z.number().int().min(0).optional(),
-        todayReservationCount: z.number().int().min(0).optional(),
+        // todayReservationCount 는 받지 않는다 - 오늘(KST) 예약 행을 세서 응답한다(#6, 보내면 400)
         acceptingPatients: z.boolean().optional(),
         notice: z.string().optional(),
       },
